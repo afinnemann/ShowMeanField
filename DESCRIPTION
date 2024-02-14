@@ -1,0 +1,22 @@
+Package: ShowMeanField
+Type: Package
+Title: Mean-field Solver and Visualizer
+Version: 0.0.0.9000
+Authors@R: 
+    person("Adam", "Finnemann", email = "Adam.finnemann@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: This package solves and visualizes the solutions of the mean-fields of canonical statistical mechanics models including the Ising model, Blume-Capel model, Potts model, 0/1 Ising model, and continuous Ising model.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Imports: 
+    dplyr,
+    ggplot2,
+    rootSolve,
+    plotly,
+    IsingSampler,
+    igraph,
+    scales,
+    parSim,
+    magrittr
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
