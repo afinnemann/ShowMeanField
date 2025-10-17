@@ -10,86 +10,162 @@
 #' @param alpha_sim Numeric vector, external field parameter space.
 #' @param beta_sim Numeric vector, beta parameter space.
 #' @param average_density Numeric, average density for the model.
-#' @param MFA_to_solve Character vector, specifies the mean-field model to solve. 
-#'        Options: "Ising", "Percolation", "han", "zero_corrected", "independent_a", "Blume_capel", "Potts", "Continuous_01".
+#' #' @param MFA_to_solve Character string, specifies the mean-field model to solve.
+#'   Options:
+#'   \itemize{
+#'     \item \code{"Ising"}: Classical Ising mean-field with binary spins,
+#'       \code{alpha} as external field, \code{beta} as inverse temperature.
+#'     \item \code{"Percolation"}: Site percolation mean-field,
+#'       \code{alpha} shifts activation, \code{beta} controls occupation probability.
+#'     \item \code{"han"}: Han’s variant mean-field with centered external field.
+#'     \item \code{"zero_corrected"}: Mean-field with correction for zero-density terms.
+#'     \item \code{"independent_a"}: Independent-site approximation,
+#'       \code{alpha} acts as penalty term, \code{beta} scales density effect.
+#'     \item \code{"Blume_capel"}: Spin-1 Blume–Capel model,
+#'       \code{alpha} is crystal-field parameter, \code{beta} inverse temperature.
+#'     \item \code{"Potts"}: q-state Potts model; here \code{alpha} represents the number
+#'       of categories (\eqn{q}, must be integer > 2), \code{beta} is inverse temperature.
+#'     \item \code{"Continuous_01"}: Continuous-spin Ising variant on [0,1],
+#'       \code{alpha} shifts mean activity, \code{beta} controls steepness.
+#'       #'     \item \code{"Continuous_-11"}: Continuous-spin Ising variant on [-1,1],
+#'       \code{alpha} shifts mean activity, \code{beta} controls steepness.
+#'   }
 #' @return A list or data frame with the simulation results.
 #' @examples
 #' MFA_sim(alpha_sim = seq(-3,3, length.out = 100), beta_sim = seq(0,3, length.out = 100), average_density = 2, MFA_to_solve = "Ising")
 #' @export
 
-MFA_sim <- function(alpha_sim = NA,
-                    beta_sim = NA,
-                    average_density = 2,
-                    MFA_to_solve = c("Ising", "Percolation", "han", 
-                                     "zero_corrected", "independent_a",
-                                     "Blume_capel", "Potts",  "Continuous_01")){
-  
-  
-  #Errors
-  if (!(MFA_to_solve %in% c("Ising", "Percolation", "han", 
-                            "zero_corrected", "independent_a",
-                            "Blume_capel", "Potts",  "Continuous_01"))) stop("Incorrect mean-field selected")
-  
-  
-  #The root function is zero when the mean field is equal to the mean field.
-  if(MFA_to_solve != "custom"){ #custom MFA?
-    if ((!is.na(alpha_sim[1]) & !is.na(beta_sim[1])) & !is.na(average_density[1])){ #custom parameters? 
-      
-      
-      if (MFA_to_solve == "Ising"){
-        root_MFA = function (x, average_density, alpha, beta) ((exp(2 * beta * (average_density * x + alpha)) - 1) / (1 + exp(2 * beta * (average_density * x + alpha)))) - x
-      } else if (MFA_to_solve == "Percolation"){
-        root_MFA = function (x, average_density, alpha, beta) (exp(beta * (average_density * x + alpha)) / (1 + exp(beta * (average_density * x + alpha)))) - x
-      } else if (MFA_to_solve == "han"){
-        root_MFA = function (x, average_density, alpha, beta) (exp(beta * (average_density * x + (alpha - 1) / 2)) / (1 + exp(beta * (average_density * x + (alpha - 1) / 2)))) - x
-      } else if (MFA_to_solve == "zero_corrected"){
-        root_MFA = function (x, average_density, alpha, beta) (exp(beta * (average_density * x + alpha - 0.5 * average_density)) / (1 + exp(beta * (average_density * x + alpha - 0.5 * average_density)))) - x
-      } else if (MFA_to_solve == "independent_a"){
-        root_MFA = function (x, average_density, alpha, beta) (exp(beta * average_density * x - alpha - 0.5 * average_density) / (1 + exp(beta * average_density * x - alpha - 0.5 * average_density))) - x
-      } else if (MFA_to_solve == "Blume_capel"){
-        #For Blume capel, beta is the coupling constant, and alpha is the costs to presence. Temp is assumed to be 1
-        root_MFA = function (x, average_density, alpha, beta) (exp(beta * ((average_density * x) - alpha)) - exp(beta * (( - average_density * x) - alpha))) / (exp(beta * ((average_density * x - alpha))) + exp( beta * ((- average_density * x - alpha))) + 1) - x
-      } else if (MFA_to_solve == "Potts"){
-        #For Blume capel, beta is the coupling constant, and alpha is the costs to presence. Temp is assumed to be 1
-        root_MFA = function (x, average_density, alpha, beta) (1 /(1 + (alpha - 1.0001) * exp((beta * (1 - alpha * x)/(alpha - 1.0001))))+0.0001) - x
-      } else if (MFA_to_solve == "Continuous_01"){
-        #For Blume capel, beta is the coupling constant, and alpha is the costs to presence. Temp is assumed to be 1
-        root_MFA = function (x, average_density, alpha, beta){
-          # Define theta
-          theta = beta * (alpha + average_density * x) 
-          
-          # continuous Ising in form: 0 = equation - x
-          result = ((1 / theta) * (1 - (theta * exp(-theta)) / (1 - exp(-theta)))) - x
-          
-          return(result)
-        }
+MFA_sim <- function(
+    alpha_sim = NA,
+    beta_sim = NA,
+    average_density = 2,
+    gamma = 0.1,
+    MFA_to_solve = c("Ising", "Percolation",
+                     #"han", "zero_corrected", "independent_a",
+                     "Blume_capel", "Potts", "Continuous_01", "Continuous_-11",
+                     "Blume_capel_inf","Blume_capel_0inf")
+){
+
+  # Validate choice
+  allowed <- c("Ising","Percolation",
+               #"han","zero_corrected","independent_a",
+               "Blume_capel","Potts","Continuous_01","Continuous_-11","Blume_capel_inf", "Blume_capel_0inf")
+  if (!(MFA_to_solve %in% allowed)) stop("Incorrect mean-field selected")
+
+  if (0 %in% beta_sim) stop("Error: beta has to be larger than zero.")
+
+  if (MFA_to_solve == "Potts") {
+    if (any(alpha_sim < 2) || any(alpha_sim %% 1 != 0)) {
+      stop("Alpha indicates the number of categories for the Potts model and must be integers > 2")
+    }
+  }
+
+  # Root functions (mean-field consistency equations)
+  if ((!is.na(alpha_sim[1]) & !is.na(beta_sim[1])) & !is.na(average_density[1])) {
+
+    if (MFA_to_solve == "Ising") {
+      root_MFA <- function (x, average_density, alpha, beta)
+        ((exp(2 * beta * (average_density * x + alpha)) - 1) /
+           (1 + exp(2 * beta * (average_density * x + alpha)))) - x
+
+    } else if (MFA_to_solve == "Percolation") {
+      root_MFA <- function (x, average_density, alpha, beta)
+        (exp(beta * (average_density * x + alpha)) /
+           (1 + exp(beta * (average_density * x + alpha)))) - x
+
+    } else if (MFA_to_solve == "han") {
+      root_MFA <- function (x, average_density, alpha, beta)
+        (exp(beta * (average_density * x + (alpha - 1) / 2)) /
+           (1 + exp(beta * (average_density * x + (alpha - 1) / 2)))) - x
+
+    } else if (MFA_to_solve == "zero_corrected") {
+      root_MFA <- function (x, average_density, alpha, beta)
+        (exp(beta * (average_density * x + alpha - 0.5 * average_density)) /
+           (1 + exp(beta * (average_density * x + alpha - 0.5 * average_density)))) - x
+
+    } else if (MFA_to_solve == "independent_a") {
+      root_MFA <- function (x, average_density, alpha, beta)
+        (exp(beta * average_density * x - alpha - 0.5 * average_density) /
+           (1 + exp(beta * average_density * x - alpha - 0.5 * average_density))) - x
+
+    } else if (MFA_to_solve == "Blume_capel") {
+      root_MFA <- function (x, average_density, alpha, beta)
+        (exp(beta * ((average_density * x) - alpha)) -
+           exp(beta * ((-average_density * x) - alpha))) /
+        (exp(beta * (average_density * x - alpha)) +
+           exp(beta * (-average_density * x - alpha)) + 1) - x
+
+    } else if (MFA_to_solve == "Potts") {
+      root_MFA <- function (x, average_density, alpha, beta) {
+        eps   <- 1e-8
+        denom <- alpha - 1
+        a     <- ifelse(abs(denom) < eps, sign(denom) * eps + eps, denom)
+        z     <- (beta * (1 - alpha * x) / a)
+        z     <- pmax(pmin(z, 700), -700)          # prevent overflow
+        p     <- 1 / (1 + a * exp(z))
+        p     <- pmin(pmax(p, 1e-8), 1 - 1e-8)     # clamp to (0,1)
+        p - x
       }
-      
-      #default MFA with custom parameters
-      result <- MFA_solver(alpha_sim = alpha_sim ,
-                           beta_sim = beta_sim,
-                           average_density = average_density,
-                           root_MFA = root_MFA,
-                           MFA_to_solve = MFA_to_solve)
-      
-    }else{
-      #load one of the default data sets to avoid simulating
-      
-      if (MFA_to_solve == "Blume_capel"){
-        result <- read.csv("Blume_capel_default.csv")
+
+    } else if (MFA_to_solve == "Continuous_01") {
+      root_MFA <- function (x, average_density, alpha, beta) {
+        theta <- beta * (alpha + average_density * x)
+
+
+            val <-   ((1/theta) * (((theta * exp(theta))/(expm1(theta)))-1))-x
+            #val <- #(1/(-expm1(-theta)) - 1/theta) - x
+      }
+
+    } else if (MFA_to_solve == "Continuous_-11") {
+      root_MFA <- function (x, average_density, alpha, beta) {
+        theta <- beta * (average_density * x + alpha)
+        val <- (cosh(theta) / sinh(theta)) - (1/theta)   # μ = coth(θ) − 1/θ
+        val - x
+      }
+
+    } else if (MFA_to_solve == "Blume_capel_0inf") {
+      if (any(alpha_sim <= 0)) stop("'Blume_capel_0inf' needs alpha (gamma) > 0.")
+      root_MFA <- function (x, average_density, alpha, beta) {
+        theta <- beta * (average_density * x + 0)    # external field = 0
+        gamma <- alpha
+        erfc <- function(z) 2 * pnorm(z * sqrt(2), lower.tail = FALSE)
+
+        Z <- (sqrt(pi) / (2 * sqrt(gamma))) * exp(theta^2 / (4 * gamma)) *
+          erfc(theta / (2 * sqrt(gamma)))
+
+        tmu <- (1 / (2 * gamma)) -
+          (theta * sqrt(pi) / (4 * gamma^(3/2))) *
+          erfc(theta / (2 * sqrt(gamma))) * exp(theta^2 / (4 * gamma))
+
+        mu <- tmu / Z
+        mu - x
+      }
+
+    }else if (MFA_to_solve == "Blume_capel_inf") {
+      #if (any(alpha_sim <= 0)) stop("For 'Blume_capel_0inf', alpha (gamma) must be > 0 to avoid division by zero and keep the model well-defined.")
+      root_MFA <- function (x, average_density, alpha, beta) {
+        theta <- beta * (average_density * x + 0) #this zero is external field
+        delta <- alpha #alpha becomes delta here
+        val <- (theta / (2 * delta)) * exp(-(theta^2) / (2 * delta))
+        val - x
       }
     }
-  }else{
-    #Custom H with custom parameters  
-    
-    result <- MFA_sim(alpha_sim = ifelse(is.null(custom_pars[[1]]),NA,custom_pars[[1]]),
-                      beta_sim = ifelse(is.null(custom_pars[[2]]),NA,custom_pars[[2]]),
-                      average_den = ifelse(is.null(custom_pars[[3]]),NA,custom_pars[[3]]),
-                      root_MFA = custom_MFA,
-                      MFA_to_solve = MFA_to_solve)
-    
+    # run solver
+    result <- MFA_solver(
+      alpha_sim       = alpha_sim,
+      beta_sim        = beta_sim,
+      average_density = average_density,
+      root_MFA        = root_MFA,
+      MFA_to_solve    = MFA_to_solve
+    )
+  } else {
+    stop("Missing parameters for MFA simulation.")
   }
+
+  return(result)
 }
+
+
 
 #' Internal function that helps solving the mean field
 #'
@@ -111,31 +187,42 @@ MFA_solver <- function(root_MFA,
                        alpha_sim = 0,
                        beta_sim = 1,
                        average_density = 4,
-                       MFA_to_solve = MFA_to_solve){
-  
-  
+                       MFA_to_solve = MFA_to_solve
+                       ){
+
+
   root_MFA_as.list = list(root_MFA)
-  
-  if(MFA_to_solve != "custom"){
-    
+
     result =  parSim::parSim(
       ### SIMULATION CONDITIONS
       alpha = alpha_sim,
-      beta = beta_sim, 
+      beta = beta_sim,
       average_density = average_density,
       root_MFA_as.list = root_MFA_as.list,
+      MFA_to_solve = MFA_to_solve,
       reps = 1, # repetitions per condition
       write = FALSE, # Writing to a file
       nCores = 1, # Number of cores to use
       expression = {
-        
-        #print(alpha)
-        #print(beta)
+
+
         solve_MFA <- function(x)  root_MFA_as.list[[1]](x, average_density, alpha, beta)
-        #print(beta * (alpha + average_density * x)+ 0.0001)
-        # Find all roots of the root function in the interval [-1,1]
-        all_roots <- rootSolve::uniroot.all(solve_MFA,interval = c(-1, 1))
-        
+
+        if (MFA_to_solve == "Blume_capel_inf"){
+          interval = c(-2, 2)
+        #} else if (MFA_to_solve == "Blume_capel_0inf"){
+        #  interval = c(0, 1)
+        } else if (MFA_to_solve == "Blume_capel_0inf"){
+        interval = c(0, 100)
+          }else {
+          interval = c(-1, 1)
+        }
+
+
+        all_roots <- try(rootSolve::uniroot.all(solve_MFA, interval = interval), silent = TRUE)
+        if (inherits(all_roots, "try-error") || length(all_roots) == 0L) return(data.frame(stability = NA_character_, value = NA_real_))
+
+
         # Determine the stability of each root by testing if the function is positive or negative prior to the root
         res <- data.frame(stability = sapply(all_roots, function(x) ifelse(solve_MFA(x - 0.001) > 0, "stable", "unstable")),
                           value = all_roots)
@@ -144,35 +231,6 @@ MFA_solver <- function(root_MFA,
     )
     result$value = as.numeric(as.character(result$value))
     return(result)
-    
-    
-  }else if(MFA_to_solve == "custom"){
-    result =  parSim(
-      ### SIMULATION CONDITIONS
-      alpha = alpha_sim,
-      beta = beta_sim, 
-      average_density = average_density,
-      root_MFA_as.list = root_MFA_as.list,
-      #root_MFA = root_MFA(),
-      reps = 1, # repetitions per condition
-      write = FALSE, # Writing to a file
-      nCores = 1, # Number of cores to use
-      expression = {
-        
-        #solve_MFA <- function(x)  root_MFA_as.list[[1]](x, param = list(alpha,beta,average_density))
-        solve_MFA <- function(x)  root_MFA_as.list[[1]](x, average_density = average_density,alpha = alpha, beta = sim_df)
-        
-        # Find all roots of the root function in the interval [-1,1]
-        all_roots <- uniroot.all(solve_MFA,interval = c(-10, 10))
-        
-        # Determine the stability of each root by testing if the function is positive or negative prior to the root
-        res <- data.frame(stability = sapply(all_roots, function(x) ifelse(solve_MFA(x - 0.001) > 0, "stable", "unstable")),
-                          value = all_roots)
-      }
-    )
-    result$value = as.numeric(as.character(result$value))
-    return(result)
-  }
 }
 
 
@@ -194,7 +252,7 @@ MFA_solver <- function(root_MFA,
 #' @examples
 #' result <- MFA_sim(alpha_sim = seq(-3,3, length.out = 100), beta_sim = seq(0,3, length.out = 100), average_density = 2, MFA_to_solve = "Ising")
 #' plot_MFA(result)
-#' 
+#'
 plot_MFA <- function(result,
                      camera_x = 2,
                      camera_y = 0,
@@ -202,18 +260,20 @@ plot_MFA <- function(result,
                      y_label = "Alpha",
                      x_label = "Beta",
                      z_label = "Mean field"){
-  
+
+  result <- result |> dplyr::filter(!is.na(value))
+
   #Coloring based on stability and magnitude
   reds <- grDevices::colorRampPalette(c("lightpink", "darkred"))(100) #color pallete for unstable
   purp <- grDevices::colorRampPalette(c("lavender", "darkorchid4"))(100) #color palette for stable
-  
+
   # Creating a color mapping function
   color_reds <- scales::col_numeric(palette = reds, domain = c(min(result$value), max(result$value)))
   color_purp <- scales::col_numeric(palette = purp, domain = c(min(result$value), max(result$value)))
-  
+
   # Apply the color function based on stability
   result$color <- ifelse(result$stability == "stable", color_purp(result$value), color_reds(result$value))
-  
+
   plot <- plotly::plot_ly(z = ~result$value,
                   x = ~result$beta,
                   y = ~result$alpha,
@@ -224,15 +284,15 @@ plot_MFA <- function(result,
                               #colorscale=c("rgb(244, 244, 244)","rgb(65, 65, 65)"),
                               showscale=TRUE)
                   #line=list(width=2,color='DarkSlateGrey'))
-  ) %>% 
+  ) %>%
     #layout(scene = list(aspectratio = list(x = 1, y = 1, z = 0.6))) %>%
     plotly::layout(scene = list(xaxis = list(title = x_label),
                         yaxis = list(title = y_label),
                         zaxis = list(title = z_label),
                         aspectratio = list(x = 1, y = 1, z = 0.6),
-                        camera = list(eye = list(x = camera_x, y = camera_y, z = camera_z)))) %>% 
+                        camera = list(eye = list(x = camera_x, y = camera_y, z = camera_z)))) %>%
     plotly::hide_colorbar()
-  
+
   return(plot)
 }
 
@@ -265,7 +325,7 @@ save_plot_MFA <- function(MFA_plot,
   reticulate::use_miniconda('r-reticulate')
   reticulate::py_run_string("import sys")
   plotly::save_image(p = MFA_plot, file = saved_image_name, width = width, height = height)
-  
+
 }
 
 
