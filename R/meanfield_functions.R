@@ -144,9 +144,9 @@ MFA_sim <- function(
     }else if (MFA_to_solve == "Blume_capel_inf") {
       #if (any(alpha_sim <= 0)) stop("For 'Blume_capel_0inf', alpha (gamma) must be > 0 to avoid division by zero and keep the model well-defined.")
       root_MFA <- function (x, average_density, alpha, beta) {
-        theta <- beta * (average_density * x + 0) #this zero is external field
+        theta <- beta * (average_density * x + 0.3) #this zero is external field
         delta <- alpha #alpha becomes delta here
-        val <- (theta / (2 * delta)) * exp(-(theta^2) / (2 * delta))
+        val <- (theta / (2 * delta)) * exp((theta^2) / (2 * delta))
         val - x
       }
     }
