@@ -125,19 +125,17 @@ MFA_sim <- function(
 
     } else if (MFA_to_solve == "Blume_capel_0inf") {
       if (any(alpha_sim <= 0)) stop("'Blume_capel_0inf' needs alpha (gamma) > 0.")
+      terf <- function(z) 2 * pnorm(z * sqrt(2), lower = FALSE)
       root_MFA <- function (x, average_density, alpha, beta) {
-        theta <- beta * (average_density * x + 0)    # external field = 0
-        gamma <- alpha
-        erfc <- function(z) 2 * pnorm(z * sqrt(2), lower.tail = FALSE)
 
-        Z <- (sqrt(pi) / (2 * sqrt(gamma))) * exp(theta^2 / (4 * gamma)) *
-          erfc(theta / (2 * sqrt(gamma)))
+        theta <- beta * (average_density * x + 1)
+        gamma = alpha
 
-        tmu <- (1 / (2 * gamma)) -
-          (theta * sqrt(pi) / (4 * gamma^(3/2))) *
-          erfc(theta / (2 * sqrt(gamma))) * exp(theta^2 / (4 * gamma))
+        phi <- (1 / (2 * sqrt(pi * gamma))) * exp(-(theta^2) / (4 * gamma))
 
-        mu <- tmu / Z
+        psi <- 1 + terf(x / (2 * sqrt(gamma)))
+
+        mu  <- phi / psi + theta / (2 * gamma)
         mu - x
       }
 
@@ -213,7 +211,7 @@ MFA_solver <- function(root_MFA,
         #} else if (MFA_to_solve == "Blume_capel_0inf"){
         #  interval = c(0, 1)
         } else if (MFA_to_solve == "Blume_capel_0inf"){
-        interval = c(0, 100)
+        interval = c(0, 10)
           }else {
           interval = c(-1, 1)
         }
