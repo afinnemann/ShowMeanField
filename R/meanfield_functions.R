@@ -40,6 +40,7 @@ MFA_sim <- function(
     beta_sim = NA,
     average_density = 2,
     gamma = 0.1,
+    plot_bc_var = FALSE, #plot the variance of the mean-field?
     MFA_to_solve = c("Ising", "Percolation",
                      #"han", "zero_corrected", "independent_a",
                      "Blume_capel", "Potts", "Continuous_01", "Continuous_-11",
@@ -128,7 +129,7 @@ MFA_sim <- function(
       terf <- function(z) 2 * pnorm(z * sqrt(2), lower = FALSE)
       root_MFA <- function (x, average_density, alpha, beta) {
 
-        theta <- beta * (average_density * x + 1)
+        theta <- beta * (average_density * x + 0.000001)
         gamma = alpha
 
         phi <- (1 / (2 * sqrt(pi * gamma))) * exp(-(theta^2) / (4 * gamma))
@@ -142,7 +143,7 @@ MFA_sim <- function(
     }else if (MFA_to_solve == "Blume_capel_inf") {
       #if (any(alpha_sim <= 0)) stop("For 'Blume_capel_0inf', alpha (gamma) must be > 0 to avoid division by zero and keep the model well-defined.")
       root_MFA <- function (x, average_density, alpha, beta) {
-        theta <- beta * (average_density * x + 0.3) #this zero is external field
+        theta <- beta * (average_density * x + 0.000001) #this zero is external field
         delta <- alpha #alpha becomes delta here
         val <- (theta / (2 * delta)) * exp((theta^2) / (2 * delta))
         val - x
@@ -158,6 +159,16 @@ MFA_sim <- function(
     )
   } else {
     stop("Missing parameters for MFA simulation.")
+  }
+
+  if (plot_bc_var == TRUE){
+    result <- result %>%
+      dplyr::filter(!is.na(value)) %>%
+      dplyr::mutate(
+        P0   = 1 / (1 + 2 * exp(-beta * alpha) * cosh(beta * average_density * value)),
+        value = (1 - P0) - (value^2)  # overwrite 'value' with Var(X)
+      ) |>
+      dplyr::filter(stability == "stable")
   }
 
   return(result)
@@ -212,6 +223,8 @@ MFA_solver <- function(root_MFA,
         #  interval = c(0, 1)
         } else if (MFA_to_solve == "Blume_capel_0inf"){
         interval = c(0, 10)
+        } else if (MFA_to_solve == "Blume_capel_inf"){
+          interval = c(-1, 1)
           }else {
           interval = c(-1, 1)
         }
@@ -228,6 +241,7 @@ MFA_solver <- function(root_MFA,
       }
     )
     result$value = as.numeric(as.character(result$value))
+
     return(result)
 }
 
@@ -257,7 +271,12 @@ plot_MFA <- function(result,
                      camera_z = 0,
                      y_label = "Alpha",
                      x_label = "Beta",
-                     z_label = "Mean field"){
+                     z_label = "Mean field",
+                     plot_bc_var = FALSE){
+
+  if (plot_bc_var == TRUE){
+    z_label = "Mean field variance"
+  }
 
   result <- result |> dplyr::filter(!is.na(value))
 
