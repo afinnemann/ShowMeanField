@@ -4,8 +4,7 @@
 #'
 #' This function computes the mean-field solutions for various models as specified. It allows for the customization
 #' of the beta parameter space, external field parameter space, and the selection of the mean-field model to solve.
-#' Valid model options include "Ising", "Percolation", "han", "zero_corrected", "independent_a", "Blume_capel",
-#' "Potts", and "Continuous_01".
+#' Valid model options include "Ising", "Percolation", "Blume_capel", "Potts", "Continuous_01", "Continuous_-11", and "Blume_capel_inf".
 #'
 #' @param alpha_sim Numeric vector, external field parameter space.
 #' @param beta_sim Numeric vector, beta parameter space.
@@ -13,22 +12,20 @@
 #' #' @param MFA_to_solve Character string, specifies the mean-field model to solve.
 #'   Options:
 #'   \itemize{
-#'     \item \code{"Ising"}: Classical Ising mean-field with binary spins,
-#'       \code{alpha} as external field, \code{beta} as inverse temperature.
-#'     \item \code{"Percolation"}: Site percolation mean-field,
+#'     \item \code{"Ising"}: Classical Ising mean-field with binary spins;
+#'       \code{alpha} is external field, \code{beta} inverse temperature.
+#'     \item \code{"Percolation"}: Site percolation mean-field;
 #'       \code{alpha} shifts activation, \code{beta} controls occupation probability.
-#'     \item \code{"han"}: Han’s variant mean-field with centered external field.
-#'     \item \code{"zero_corrected"}: Mean-field with correction for zero-density terms.
-#'     \item \code{"independent_a"}: Independent-site approximation,
-#'       \code{alpha} acts as penalty term, \code{beta} scales density effect.
-#'     \item \code{"Blume_capel"}: Spin-1 Blume–Capel model,
+#'     \item \code{"Blume_capel"}: Spin-1 Blume–Capel model;
 #'       \code{alpha} is crystal-field parameter, \code{beta} inverse temperature.
-#'     \item \code{"Potts"}: q-state Potts model; here \code{alpha} represents the number
-#'       of categories (\eqn{q}, must be integer > 2), \code{beta} is inverse temperature.
-#'     \item \code{"Continuous_01"}: Continuous-spin Ising variant on [0,1],
+#'     \item \code{"Potts"}: q-state Potts model; here \code{alpha} represents
+#'       the number of categories (\eqn{q}, integer > 2), \code{beta} inverse temperature.
+#'     \item \code{"Continuous_01"}: Continuous-spin Ising variant on [0,1];
 #'       \code{alpha} shifts mean activity, \code{beta} controls steepness.
-#'       #'     \item \code{"Continuous_-11"}: Continuous-spin Ising variant on [-1,1],
+#'     \item \code{"Continuous_-11"}: Continuous-spin Ising variant on [-1,1];
 #'       \code{alpha} shifts mean activity, \code{beta} controls steepness.
+#'     \item \code{"Blume_capel_inf"}: Spin-1 Blume–Capel in the infinite-variance limit;
+#'       \code{alpha} acts as \eqn{\Delta} (crystal field), \code{beta} inverse temperature.
 #'   }
 #' @return A list or data frame with the simulation results.
 #' @examples
@@ -222,7 +219,7 @@ MFA_solver <- function(root_MFA,
         #} else if (MFA_to_solve == "Blume_capel_0inf"){
         #  interval = c(0, 1)
         } else if (MFA_to_solve == "Blume_capel_0inf"){
-        interval = c(0, 10)
+        interval = c(0, 100)
         } else if (MFA_to_solve == "Blume_capel_inf"){
           interval = c(-1, 1)
           }else {
