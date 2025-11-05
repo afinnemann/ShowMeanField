@@ -1,0 +1,134 @@
+---
+title: "Mean Field Simulations"
+author: "Adam Finnemann"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Interactive visualizations of mean field approximations associated with the article ``A theory construction methodology for network theories in psychology''. For a smooth running html file, the models were simulated over a coarse grid, meaning the models might appear less smooth and with gaps in the surface.   
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      fig.width = 6, fig.height = 4)
+
+#Install showmeanfield from github
+#devtools::install_github("afinnemann/ShowMeanField")
+library(ShowMeanField)
+library(tidyverse)
+```
+
+## Ising [-1, 1]
+
+```{r}
+Ising <- MFA_sim(
+  alpha_sim = seq(-4, 4, length.out = 100),
+  beta_sim = seq(0.001, 3, length.out = 100),
+  average_density = 2,
+  MFA_to_solve = "Ising"
+)
+plot_MFA(Ising)
+```
+
+## Ising [0, 1]
+
+```{r}
+Perc <- MFA_sim(
+  alpha_sim = seq(-4, 4, length.out = 100),
+  beta_sim = seq(0.001, 3, length.out = 100),
+  average_density = 2,
+  MFA_to_solve = "Percolation"
+)
+plot_MFA(Perc)
+```
+
+## Blume-Capel 
+
+```{r}
+BC <- MFA_sim(
+  alpha_sim = seq(0.001, 1.8, length.out = 100), #here alpha acts as delta
+  beta_sim = seq(0.001, 3, length.out = 100),
+  average_density = 2,
+  MFA_to_solve = "Blume_capel"
+)
+
+plot_MFA(BC, y_label = "delta (higher val -> more 0")
+```
+## BLume-Capel expected variance
+
+```{r}
+BC <- MFA_sim(
+  alpha_sim = seq(0.001, 1.7, length.out = 300), #here alpha acts as delta
+  beta_sim = seq(0.001, 3, length.out = 300),
+  average_density = 2,
+  MFA_to_solve = "Blume_capel",
+  plot_bc_var = TRUE
+)
+
+plot_MFA(BC, y_label = "delta (higher val -> more 0)",plot_bc_var = TRUE)
+```
+
+## Potts
+
+```{r}
+Potts <- MFA_sim(
+  alpha_sim = 2:10, #here alpha acts as h
+  beta_sim = seq(0.1, 10, length.out = 200),
+  average_density = 2,
+  MFA_to_solve = "Potts"
+)
+plot_MFA(Potts, y_label = "h (n categories)") 
+```
+
+## Ising (ℝ⁺)
+
+```{r}
+res_01 <- MFA_sim(
+  alpha_sim = seq(-5, 5, length.out = 100),
+  beta_sim = seq(0.1, 10, length.out = 100),
+  average_density = 2,
+  MFA_to_solve = "Continuous_01"
+)
+plot_MFA(res_01)
+```
+
+
+## Ising (ℝ)
+
+```{r}
+res_11 <- MFA_sim(
+  alpha_sim = seq(-5, 5, length.out = 100),
+  beta_sim = seq(0.1, 10, length.out = 100),
+  average_density = 2,
+  gamma = 0.1,
+  MFA_to_solve = "Continuous_-11"
+)
+plot_MFA(res_11)
+```
+
+## Blume–Capel (ℝ)
+
+```{r}
+res_BC_inf <- MFA_sim(
+  alpha_sim = seq(0.01, 2, length.out = 100), # alpha acts as delta
+  beta_sim  = seq(0.01, 2, length.out = 100),
+  average_density = 2,
+  MFA_to_solve = "Blume_capel_inf"
+)
+plot_MFA(res_BC_inf, x_label = "beta", y_label = "delta (higher val -> more 0)")
+
+
+
+```
+
+
+## Blume–Capel (ℝ⁺)
+
+```{r}
+res_BC_0inf <- MFA_sim(
+  alpha_sim = seq(0.01, 2, length.out = 150), # alpha acts as delta
+  beta_sim  = seq(0.01, 2, length.out = 150),
+  average_density = 2,
+  MFA_to_solve = "Blume_capel_0inf"
+)
+plot_MFA(res_BC_0inf, y_label = "delta (higher val -> more 0")
+```
